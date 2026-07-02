@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Oil Stain Interactive - Mobile & Desktop</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background: #f5f5f0; overflow: hidden; touch-action: none; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+
+<script>
+let drops = [];
+
+function setup() {
+  createCanvas(windowWidth, windowHeight); 
+  pixelDensity(1); 
+  noStroke();
+}
+
+function draw() {
+  background(245, 245, 240); 
+  
+  for (let i = 0; i < drops.length; i++) {
+    drops[i].update();
+  }
+  
+  loadPixels();
+  let step = 3; 
+  
+  for (let x = 0; x < width; x += step) {
+    for (let y = 0; y < height; y += step) {
+      let sumCore = 0;
+      let sumHalo = 0;
+      
+      for (let i = 0; i < drops.length; i++) {
+        let d = drops[i];
+        let dx = x - d.x;
+        let dy = y - d.y;
+        let distSq = dx * dx + dy * dy;
+        
+        if (distSq > 0) {
+          sumCore += d.coreR2 / distSq;
+          sumHalo += d.haloR2 / distSq;
+        }
+      }
+      
+      if (sumCore > 1 || sumHalo > 1) {
+        for (let xo = 0; xo < step; xo++) {
+          for (let yo = 0; yo < step; yo++) {
+            let px = x + xo;
+            let py = y + yo;
+            if (px < width && py < height) {
+              let index = (px + py * width) * 4;
+              if (sumCore > 1) {
+                pixels[index + 0] = 220; 
+                pixels[index + 1] = 90;  
+                pixels[index + 2] = 10;  
+              } else {
+                pixels[index + 0] = 240; 
+                pixels[index + 1] = 160; 
+                pixels[index + 2] = 50;  
+              }
+              pixels[index + 3] = 255;
+            }
+          }
+        }
+      }
+    }
+  }
+  updatePixels();
+
+  // ==========================================
+  // ✨ 新增：顶部居中提示文字 (响应式字号)
+  // ==========================================
+  push(); // 保护接下来的排版样式不影响其他代码
+  textAlign(CENTER, TOP);
+  fill(170, 170, 165); // 极其低调的高级灰，不抢油渍的风头
+  noStroke();
+
+  let baseSize;
+  // 核心！在这里判断屏幕宽度
+  if (windowWidth < 600) {
+    baseSize = 14; // 手机端：小一点
+  } else {
+    baseSize = 18; // 电脑端：大一点
+  }
+
+  // 1. 画中文
+  textSize(baseSize);
+  text("点点看！", width / 2, 40); // 放在屏幕正中间偏上 (Y轴坐标40)
+
+  // 2. 画英文 (字号比中文再小 20%，拉开视觉层次)
+  textSize(baseSize * 0.6);
+  // Y轴坐标往下挪一点，给中文让出空间
+  text("just click!", width / 2, 40 + baseSize + 6); 
+  pop(); 
+}
+
+function mousePressed() {
+  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+    drops.push(new OilDrop(mouseX, mouseY));
+  }
+}
+
+function touchStarted() {
+  if (touches.length > 0) {
+    drops.push(new OilDrop(touches[0].x, touches[0].y));
+  }
+  return false; 
+}
+
+class OilDrop {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.baseR = random(5, 10); 
+    this.coreR = 1;
+    this.haloR = 1;
+    this.targetCoreR = this.baseR * 1.2;
+    this.targetHaloR = this.baseR * random(2, 3.5);
+    this.coreR2 = 1;
+    this.haloR2 = 1;
+  }
+  
+  update() {
+    this.coreR = lerp(this.coreR, this.targetCoreR, 0.1);
+    this.haloR = lerp(this.haloR, this.targetHaloR, 0.015);
+    this.coreR2 = this.coreR * this.coreR;
+    this.haloR2 = this.haloR * this.haloR;
+  }
+}
+</script>
+</body>
+</html>
