@@ -6,11 +6,72 @@
   <title>Oil Stain Interactive - Mobile & Desktop</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
-    body { margin: 0; padding: 0; background: #f5f5f0; overflow: hidden; touch-action: none; }
+    body { margin: 0; padding: 0; background: #f5f5f0; overflow: hidden; touch-action: none; font-family: sans-serif; }
     canvas { display: block; }
+    
+    /* ==========================================
+       ✨ 新增：底部悬浮图标按钮的极简 CSS 样式
+       ========================================== */
+    .controls {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 24px;
+      z-index: 10;
+    }
+
+    .icon-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.85); /* 微微透明的质感 */
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #777; /* 高级灰图标色 */
+      backdrop-filter: blur(4px); /* 磨砂玻璃效果 */
+      transition: all 0.2s ease;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.92); /* 按下时会有回弹的微交互 */
+      background: rgba(240, 240, 240, 0.9);
+    }
+
+    .icon-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
   </style>
 </head>
 <body>
+
+<div class="controls">
+  <button class="icon-btn" onclick="clearCanvas()" aria-label="Refresh">
+    <svg viewBox="0 0 24 24">
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+      <path d="M3 3v5h5"></path>
+    </svg>
+  </button>
+  
+  <button class="icon-btn" onclick="saveDesign()" aria-label="Save">
+    <svg viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline points="7 10 12 15 17 10"></polyline>
+      <line x1="12" y1="15" x2="12" y2="3"></line>
+    </svg>
+  </button>
+</div>
 
 <script>
 let drops = [];
@@ -73,40 +134,51 @@ function draw() {
   }
   updatePixels();
 
-  // ==========================================
-  // ✨ 新增：顶部居中提示文字 (响应式字号)
-  // ==========================================
-  push(); // 保护接下来的排版样式不影响其他代码
+  push(); 
   textAlign(CENTER, TOP);
-  fill(170, 170, 165); // 极其低调的高级灰，不抢油渍的风头
+  fill(170, 170, 165); 
   noStroke();
 
   let baseSize;
-  // 核心！在这里判断屏幕宽度
   if (windowWidth < 600) {
-    baseSize = 14; // 手机端：小一点
+    baseSize = 14; 
   } else {
-    baseSize = 18; // 电脑端：大一点
+    baseSize = 18; 
   }
 
-  // 1. 画中文
   textSize(baseSize);
-  text("点点看！", width / 2, 40); // 放在屏幕正中间偏上 (Y轴坐标40)
-
-  // 2. 画英文 (字号比中文再小 20%，拉开视觉层次)
-  textSize(baseSize * 0.6);
-  // Y轴坐标往下挪一点，给中文让出空间
-  text("Just click!", width / 2, 40 + baseSize + 6); 
+  text("点点看！", width / 2, 40); 
+  textSize(baseSize * 0.8);
+  text("just click!", width / 2, 40 + baseSize + 6); 
   pop(); 
 }
 
-function mousePressed() {
+// ==========================================
+// ✨ 新增：按钮的功能逻辑
+// ==========================================
+function clearCanvas() {
+  drops = []; // 清空数组，画面瞬间恢复纯白
+}
+
+function saveDesign() {
+  // p5.js 自带的保存功能，自动下载为图片，文件名为 oil-design.png
+  saveCanvas('oil-design', 'png'); 
+}
+
+// 优化了鼠标和触摸事件，防止点按钮时生成油滴
+function mousePressed(event) {
+  // 如果点到了带 icon-btn 的按钮，就不生成油滴
+  if (event.target.closest('.icon-btn')) return; 
+
   if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
     drops.push(new OilDrop(mouseX, mouseY));
   }
 }
 
-function touchStarted() {
+function touchStarted(event) {
+  // 手机端同理，如果是按按钮，就放行，不画油滴
+  if (event.target.closest('.icon-btn')) return true; 
+
   if (touches.length > 0) {
     drops.push(new OilDrop(touches[0].x, touches[0].y));
   }
