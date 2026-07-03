@@ -10,8 +10,31 @@
     canvas { display: block; }
     
     /* ==========================================
-       ✨ 新增：底部悬浮图标按钮的极简 CSS 样式
+       ✨ 新增：悬浮文字的 CSS 样式
        ========================================== */
+    .top-hint {
+      position: fixed;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      color: #aaaaa5; /* 极其低调的高级灰 */
+      /* 核心黑科技：让鼠标和手指能“穿透”这行字，点在画布上 */
+      pointer-events: none; 
+      z-index: 10;
+      user-select: none;
+    }
+
+    .hint-cn { font-size: 18px; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px; }
+    .hint-en { font-size: 14.4px; }
+
+    /* 手机端自动调小字号 */
+    @media (max-width: 600px) {
+      .hint-cn { font-size: 14px; }
+      .hint-en { font-size: 11px; }
+    }
+
+    /* 底部按钮的样式（保持不变） */
     .controls {
       position: fixed;
       bottom: 40px;
@@ -26,20 +49,20 @@
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.85); /* 微微透明的质感 */
+      background: rgba(255, 255, 255, 0.85);
       border: 1px solid rgba(0, 0, 0, 0.05);
       box-shadow: 0 4px 16px rgba(0,0,0,0.06);
       cursor: pointer;
       display: flex;
       justify-content: center;
       align-items: center;
-      color: #777; /* 高级灰图标色 */
-      backdrop-filter: blur(4px); /* 磨砂玻璃效果 */
+      color: #777; 
+      backdrop-filter: blur(4px); 
       transition: all 0.2s ease;
     }
 
     .icon-btn:active {
-      transform: scale(0.92); /* 按下时会有回弹的微交互 */
+      transform: scale(0.92); 
       background: rgba(240, 240, 240, 0.9);
     }
 
@@ -56,20 +79,17 @@
 </head>
 <body>
 
+<div class="top-hint">
+  <div class="hint-cn">点点看！</div>
+  <div class="hint-en">just click!</div>
+</div>
+
 <div class="controls">
   <button class="icon-btn" onclick="clearCanvas()" aria-label="Refresh">
-    <svg viewBox="0 0 24 24">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-      <path d="M3 3v5h5"></path>
-    </svg>
+    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
   </button>
-  
   <button class="icon-btn" onclick="saveDesign()" aria-label="Save">
-    <svg viewBox="0 0 24 24">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-      <polyline points="7 10 12 15 17 10"></polyline>
-      <line x1="12" y1="15" x2="12" y2="3"></line>
-    </svg>
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
   </button>
 </div>
 
@@ -133,41 +153,18 @@ function draw() {
     }
   }
   updatePixels();
-
-  push(); 
-  textAlign(CENTER, TOP);
-  fill(170, 170, 165); 
-  noStroke();
-
-  let baseSize;
-  if (windowWidth < 600) {
-    baseSize = 14; 
-  } else {
-    baseSize = 18; 
-  }
-
-  textSize(baseSize);
-  text("点点看！", width / 2, 40); 
-  textSize(baseSize * 0.8);
-  text("just click!", width / 2, 40 + baseSize + 6); 
-  pop(); 
+  // 已经将原本在这里画文字的代码删掉了！
 }
 
-// ==========================================
-// ✨ 新增：按钮的功能逻辑
-// ==========================================
 function clearCanvas() {
-  drops = []; // 清空数组，画面瞬间恢复纯白
+  drops = []; 
 }
 
 function saveDesign() {
-  // p5.js 自带的保存功能，自动下载为图片，文件名为 oil-design.png
   saveCanvas('oil-design', 'png'); 
 }
 
-// 优化了鼠标和触摸事件，防止点按钮时生成油滴
 function mousePressed(event) {
-  // 如果点到了带 icon-btn 的按钮，就不生成油滴
   if (event.target.closest('.icon-btn')) return; 
 
   if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
@@ -176,7 +173,6 @@ function mousePressed(event) {
 }
 
 function touchStarted(event) {
-  // 手机端同理，如果是按按钮，就放行，不画油滴
   if (event.target.closest('.icon-btn')) return true; 
 
   if (touches.length > 0) {
@@ -189,11 +185,11 @@ class OilDrop {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.baseR = random(10, 18); 
+    this.baseR = random(5, 10); 
     this.coreR = 1;
     this.haloR = 1;
     this.targetCoreR = this.baseR * 1.2;
-    this.targetHaloR = this.baseR * random(1.8, 2.4);
+    this.targetHaloR = this.baseR * random(2, 3.5);
     this.coreR2 = 1;
     this.haloR2 = 1;
   }
