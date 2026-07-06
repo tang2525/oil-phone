@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Oil Stain Interactive - Mobile & Desktop</title>
+  <title>Oil Stain Interactive - Mobile UI & Audio</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
   <style>
     body { margin: 0; padding: 0; background: #f5f5f0; overflow: hidden; touch-action: none; font-family: sans-serif; }
     canvas { display: block; }
     
     /* ==========================================
-       ✨ 新增：悬浮文字的 CSS 样式
+       悬浮文字的 CSS 样式
        ========================================== */
     .top-hint {
       position: fixed;
@@ -18,8 +18,7 @@
       left: 50%;
       transform: translateX(-50%);
       text-align: center;
-      color: #aaaaa5; /* 极其低调的高级灰 */
-      /* 核心黑科技：让鼠标和手指能“穿透”这行字，点在画布上 */
+      color: #aaaaa5; 
       pointer-events: none; 
       z-index: 10;
       user-select: none;
@@ -28,13 +27,12 @@
     .hint-cn { font-size: 18px; font-weight: bold; margin-bottom: 4px; letter-spacing: 1px; }
     .hint-en { font-size: 14.4px; }
 
-    /* 手机端自动调小字号 */
     @media (max-width: 600px) {
       .hint-cn { font-size: 14px; }
       .hint-en { font-size: 11px; }
     }
 
-    /* 底部按钮的样式（保持不变） */
+    /* 底部按钮的样式 */
     .controls {
       position: fixed;
       bottom: 40px;
@@ -96,6 +94,10 @@
 <script>
 let drops = [];
 
+// 音频系统全局变量
+let audioCtx; 
+let reverbNode;
+
 function setup() {
   createCanvas(windowWidth, windowHeight); 
   pixelDensity(1); 
@@ -153,7 +155,6 @@ function draw() {
     }
   }
   updatePixels();
-  // 已经将原本在这里画文字的代码删掉了！
 }
 
 function clearCanvas() {
@@ -164,21 +165,45 @@ function saveDesign() {
   saveCanvas('oil-design', 'png'); 
 }
 
+// ==========================================
+// ✨ 核心交互处理：整合声音触发与距离检测
+// ==========================================
+function handleDropInteraction(posX, posY) {
+  let newDrop = new OilDrop(posX, posY);
+  let delayCount = 1;
+
+  for (let i = 0; i < drops.length; i++) {
+    let existingDrop = drops[i];
+    let d = dist(newDrop.x, newDrop.y, existingDrop.x, existingDrop.y);
+    
+    if (d < (newDrop.targetHaloR + existingDrop.targetHaloR) * 1.1) {
+      playOilDropSound(delayCount * 0.12); 
+      delayCount++;
+    }
+  }
+
+  drops.push(newDrop);
+  playOilDropSound(0); 
+}
+
 function mousePressed(event) {
+  // 防误触：如果点在 UI 按钮上，直接拦截
   if (event.target.closest('.icon-btn')) return; 
 
-  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
-    drops.push(new OilDrop(mouseX, mouseY));
+  // 确保没有触摸事件介入（防止移动端触发两次）
+  if (touches.length === 0 && mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+    handleDropInteraction(mouseX, mouseY);
   }
 }
 
 function touchStarted(event) {
+  // 防误触：允许 UI 按钮被正常点击
   if (event.target.closest('.icon-btn')) return true; 
 
   if (touches.length > 0) {
-    drops.push(new OilDrop(touches[0].x, touches[0].y));
+    handleDropInteraction(touches[0].x, touches[0].y);
   }
-  return false; 
+  return false; // 阻止页面滑动
 }
 
 class OilDrop {
@@ -200,6 +225,83 @@ class OilDrop {
     this.coreR2 = this.coreR * this.coreR;
     this.haloR2 = this.haloR * this.haloR;
   }
+}
+
+// ==========================================
+// ✨ 音频引擎（随机音阶 + 物理混响）
+// ==========================================
+function initAudio() {
+  if (audioCtx) return; 
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  
+  let duration = 3.0; 
+  let decay = 2.0; 
+  let sampleRate = audioCtx.sampleRate;
+  let length = sampleRate * duration;
+  let impulse = audioCtx.createBuffer(2, length, sampleRate);
+  
+  for (let c = 0; c < 2; c++) {
+    let channelData = impulse.getChannelData(c);
+    for (let i = 0; i < length; i++) {
+      channelData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+    }
+  }
+  
+  reverbNode = audioCtx.createConvolver();
+  reverbNode.buffer = impulse;
+  reverbNode.connect(audioCtx.destination);
+}
+
+function playOilDropSound(delayOffset = 0) {
+  initAudio();
+  
+  // iOS Safari 安全机制
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const now = audioCtx.currentTime + delayOffset;
+  
+  const scale = [
+    130.81, 146.83, 164.81, 196.00, 220.00, 
+    261.63, 293.66, 329.63, 392.00, 440.00, 
+    523.25, 587.33, 659.25, 783.99, 880.00  
+  ];
+  const baseFreq = scale[Math.floor(Math.random() * scale.length)];
+
+  // 1. 内圈
+  const innerOsc = audioCtx.createOscillator();
+  const innerGain = audioCtx.createGain();
+  innerOsc.type = 'sine'; 
+  
+  innerOsc.frequency.setValueAtTime(baseFreq, now);
+
+  innerGain.gain.setValueAtTime(0, now);
+  innerGain.gain.linearRampToValueAtTime(0.4, now + 0.02); 
+  innerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8); 
+
+  innerOsc.connect(innerGain);
+  innerGain.connect(audioCtx.destination); 
+  innerOsc.start(now);
+  innerOsc.stop(now + 1.0); 
+
+  // 2. 外圈混响
+  const outerOsc = audioCtx.createOscillator();
+  const outerGain = audioCtx.createGain();
+  outerOsc.type = 'sine'; 
+  
+  outerOsc.frequency.setValueAtTime(baseFreq * 0.25, now); 
+  
+  outerGain.gain.setValueAtTime(0, now);
+  outerGain.gain.linearRampToValueAtTime(0.05, now + 0.2); 
+  outerGain.gain.exponentialRampToValueAtTime(0.001, now + 2.5); 
+  
+  outerOsc.connect(outerGain);
+  outerGain.connect(audioCtx.destination); 
+  outerGain.connect(reverbNode);           
+
+  outerOsc.start(now);
+  outerOsc.stop(now + 2.6); 
 }
 </script>
 </body>
